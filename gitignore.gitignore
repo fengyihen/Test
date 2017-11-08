@@ -1,0 +1,6 @@
+# no .csv files
+*.a
+
+# no .h5 files
+*.h5
+
