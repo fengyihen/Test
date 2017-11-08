@@ -31,7 +31,7 @@ tpr = 0.02
 tupleArg = (length, rr, tpr, wtime)
 hsmatrade = futuremodel.insample_test(strategy, *tupleArg)
 portfolio = futuremodel.portfolio(hsmatrade)
-tradestat = InvestBase.tradestat_portfolio(portfolio)
+tradestat = futuremodel.traderatiostat(hsmatrade)
 plt.plot(portfolio.ratio)
 
 #样本外测试
