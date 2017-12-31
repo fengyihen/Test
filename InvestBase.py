@@ -14,7 +14,7 @@ def tradestat_portfolio(portfolio):
         'startdate': [min(portfolio['date'])],
         'enddate': [max(portfolio['date'])]
     })
-    tradestat['ratio'] = portfolio.loc[portfolio.shape[0] - 1, 'ratio']
+    tradestat['ratio'] = portfolio['ratio'].iloc[portfolio.shape[0] - 1]
 
     tradestat['meandayratio'] = portfolio['dayratio'].mean()
 

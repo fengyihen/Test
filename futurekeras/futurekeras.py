@@ -10,8 +10,8 @@ import sys
 sys.path.append("Test")
 import time
 from imp import reload
-import Future
-reload(Future)
+import FutureDay
+reload(FutureDay)
 import numpy as np
 import pandas as pd
 from keras.models import Sequential
@@ -25,7 +25,7 @@ from keras import backend
 #from keras.layers import Conv1D, GlobalAveragePooling1D, MaxPooling1
 
 
-class FutureKeras(Future.Future):
+class FutureKeras(FutureDay.Future):
     def hsmaseq(self, traindatax, timesteps, data_dim):
 
         for i in range(traindatax.shape[0]):
@@ -1066,28 +1066,33 @@ class FutureKeras(Future.Future):
 
         return codeprob
 
-    def lstm_classification_roc(self, testlen, ntrain, length_t, epochs,
+    def lstm_classification_r(self, testlen, ntrain, epochs,
                                 batchsize, timesteps, day, tr, activation,
-                                attr, modellabel, readfile):
+                                attr, attry, modellabel, readfile):
         if attr == 'raw':
-            hsmadata_x = self.hsmadata_raw_x(timesteps, length_t)
+            hsmadata_x = self.hsmadata_raw_x(timesteps)
         elif attr == 'raw2':
-            hsmadata_x = self.hsmadata_raw_x2(timesteps, length_t)
+            hsmadata_x = self.hsmadata_raw_x2(timesteps)
         elif attr == 'rawcci':
-            hsmadata_x = self.hsmadata_rawcci_x(timesteps, length_t)
+            hsmadata_x = self.hsmadata_rawcci_x(timesteps)
         else:
             print('Wrong Attr!')
-
-        hsmadata_y = self.hsmadata_roc(day)
+        
+        if attry == 'roc':
+            hsmadata_y = self.hsmadata_roc(day)
+        elif attry == 'roo':
+            hsmadata_y = self.hsmadata_roo(day)
+        else:
+            print('Wrong Attr_y!')
         hsmadata = pd.merge(hsmadata_y, hsmadata_x)
 
         dates = pd.Series(hsmadata['date'].unique()).sort_values()
         dates.index = range(0, len(dates))
         ntest = len(dates) // testlen
 
-        filename = 'Test\\futurekeras\\testresult\\hsma_lstm_cls_roc_day' + str(
+        filename = 'testresult\\futurekeras\\train\\hsma_lstm_cls_r_day' + str(
             day
-        ) + '_attr' + str(attr) + '_length_t' + str(length_t) + '_tr' + str(
+        ) + '_attr' + str(attr) + '_attry' + str(attry) + '_tr' + str(
             tr) + '_timesteps' + str(timesteps) + '_' + str(
                 activation) + '_' + modellabel + '_' + self.label + '.h5'
 
@@ -1102,27 +1107,26 @@ class FutureKeras(Future.Future):
         for i in range(ntrain, ntest):
             traindata = hsmadata[
                 (hsmadata['date'] >= dates[(i - ntrain) * testlen])
-                & (hsmadata['date'] <= dates[i * testlen - day])].copy()
+                & (hsmadata['date'] <= dates[i * testlen - day - 1])].copy()
             testdata = hsmadata[(hsmadata['date'] >= dates[i * testlen])
-                                & (hsmadata['date'] <=
+                                & (hsmadata['date'] <
                                    dates[(i + 1) * testlen])].copy()
-            preddate = dates[i * testlen]
-            startdate = min(testdata.date[testdata.date > preddate])
+            startdate = dates[i * testlen]
             enddate = testdata.date.max()
             if hsma.shape[0] > 0:
-                if startdate <= hsma.enddate.max():
+                if startdate <= hsma.date.max():
                     continue
             print(enddate)
 
             ###变换数据集成LSTM所需格式
-            traindatax = traindata.drop(['date', 'code', 'ROC'], 1)
+            traindatax = traindata.drop(['date', 'code', 'ratio'], 1)
             testdatax = testdata[traindatax.columns].values
             traindatax = traindatax.values
             dim = int(traindatax.shape[1] / timesteps)
             traindatax_lstm = self.hsmaseq(traindatax, timesteps, data_dim=dim)
             testdatax_lstm = self.hsmaseq(testdatax, timesteps, data_dim=dim)
-            traindatay_short = to_categorical(traindata['ROC'].values < -tr)
-            traindatay_long = to_categorical(traindata['ROC'].values > tr)
+            traindatay_short = to_categorical(traindata['ratio'].values < -tr)
+            traindatay_long = to_categorical(traindata['ratio'].values > tr)
 
             ###建模并预测
             if modellabel == 'LSTM1cls':
@@ -1148,66 +1152,15 @@ class FutureKeras(Future.Future):
             else:
                 break
 
-            code_long = pd.DataFrame()
-            code_short = pd.DataFrame()
-            for code in testdata.code.unique():
-                if any((testdata.code == code) & (testdata.date == preddate)):
-                    temp = pd.DataFrame(
-                        {
-                            'code':
-                            code,
-                            'LS':
-                            'L',
-                            'preddate':
-                            preddate,
-                            'startdate':
-                            startdate,
-                            'enddate':
-                            enddate,
-                            'ROC':
-                            testdata.loc[(testdata.code == code) & (
-                                testdata.date == preddate), 'ROC'].values,
-                            'prob':
-                            testdata.loc[(testdata.code == code) & (
-                                testdata.date == preddate), 'prob_long'].values
-                        },
-                        index=[0])
-                    code_long = pd.concat([code_long, temp], ignore_index=True)
-                    temp = pd.DataFrame(
-                        {
-                            'code':
-                            code,
-                            'LS':
-                            'S',
-                            'preddate':
-                            preddate,
-                            'startdate':
-                            startdate,
-                            'enddate':
-                            enddate,
-                            'ROC':
-                            testdata.loc[(testdata.code == code) & (
-                                testdata.date == preddate), 'ROC'].values,
-                            'prob':
-                            testdata.loc[(testdata.code == code) &
-                                         (testdata.date == preddate),
-                                         'prob_short'].values
-                        },
-                        index=[0])
-                    code_short = pd.concat(
-                        [code_short, temp], ignore_index=True)
-
-            ###排序
-            code_long.sort_values(by='prob', ascending=False, inplace=True)
-            code_short.sort_values(by='prob', ascending=False, inplace=True)
-            hsmatemp = pd.concat([code_long, code_short], ignore_index=True)
+            hsmatemp = testdata[['date', 'code', 
+                                 'ratio', 'prob_long', 'prob_short']]
 
             hsma = pd.concat([hsma, hsmatemp], ignore_index=True)
             hsma.to_hdf(filename, 'hsma')
 
         return (hsma)
 
-    def lstm_classification(self, testlen, ntrain, epochs, batchsize,
+    def lstm_classification_bestp(self, testlen, ntrain, epochs, batchsize,
                             timesteps, ncode, day, lr, activation, modellabel):
 
         hsmadata_x = self.hsmadata_raw_x(timesteps)
@@ -1273,7 +1226,7 @@ class FutureKeras(Future.Future):
 
         return (hsma)
 
-    def lstm_classification_code(self, testlen, ntrain, epochs, batchsize,
+    def lstm_classification_bestp_code(self, testlen, ntrain, epochs, batchsize,
                                  timesteps, ncode, day, lr, modellabel):
 
         hsmadata_x = self.hsmadata_raw_x(timesteps)

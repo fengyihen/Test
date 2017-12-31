@@ -29,18 +29,20 @@ ntrain = 12
 epochs = 20
 batchsize = 3000
 timesteps = 20
-ncode = 10
-day = 20
-lr = 0.04
+day = 5
+tr = 0.02
 activation = 'relu'
+attr = 'raw'
+attry = 'roo'
 modellabel = 'LSTM1cls'
 #modellabel = 'LSTM2cls'
-hsma = futuremodel.lstm_classification(testlen, ntrain, epochs, batchsize,
+readfile = False
+hsma = futuremodel.lstm_classification_r(testlen, ntrain, epochs, batchsize,
                                        timesteps, ncode, day, lr, activation,
                                        modellabel)
-hsmaratio, portfolio = futuremodel.hsmadata_predp_r(hsma, lr)
-tradestat = InvestBase.tradestat_portfolio(portfolio)
-plt.plot(portfolio.ratio)
+hsmaratio = futuremodel.hsmadata_daycode_lsr(hsma, day)
+tradestat = InvestBase.tradestat_portfolio(hsmaratio)
+plt.plot(hsmaratio.ratio)
 
 #测试结果统计
 filename = 'Test\\futurekeras\\testresult\\hsma_lstm_cls_kerastest_LSTM1cls.h5'
