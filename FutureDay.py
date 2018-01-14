@@ -149,7 +149,7 @@ class Future():
 
         return hsmaall
 
-    def hsmadata_ta_x(self):  #code 只能是商品
+    def hsmadata_ta_x(self, lengths):  #code 只能是商品
 
         hsmadata = pd.DataFrame()
         for code in self.feelist.keys():
@@ -158,7 +158,7 @@ class Future():
                 'date',
                 'code',
             ]].copy()
-            for l in self.length:
+            for l in lengths:
                 temp['ROC_' + str(l)] = talib.ROC(
                     hsma0.close.values, timeperiod=l)
                 if l > 2:
@@ -180,8 +180,8 @@ class Future():
                         timeperiod=l)
                     temp['RSI_' + str(l)] = talib.RSI(
                         hsma0.close.values, timeperiod=l)
-                    temp['VAR_' + str(l)] = talib.VAR(
-                        hsma0.close.values, timeperiod=l)
+                    temp['STD_' + str(l)] = talib.STDDEV(
+                        hsma0.close.values, timeperiod=l) / hsma0.close.values
 
             temp = temp.dropna()
             hsmadata = pd.concat([hsmadata, temp], ignore_index=True)
@@ -794,18 +794,33 @@ class Future():
         hsmadata = hsmadata.dropna()
 
         return hsmadata
-
-    def hsmadata_daycode_lsr(self, hsma, day):
+    
+    def hsmadata_daycode_lsp(self, hsma, day, fee):
         hsma['r'] = 0
-        hsma.loc[(hsma.prob_long > 0.5) & (hsma.prob_short < 0.5), 
-                 'r'] = hsma.loc[(hsma.prob_long > 0.5) & (hsma.prob_short < 0.5), 
-                    'ratio'] - 0.0004
-        hsma.loc[(hsma.prob_long < 0.5) & (hsma.prob_short > 0.5), 
-                 'r'] = -hsma.loc[(hsma.prob_long < 0.5) & (hsma.prob_short > 0.5), 
-                    'ratio'] - 0.0004
-        hsmaratio = pd.DataFrame(hsma.groupby(['date'])['r'].mean()) / day
+        tradelong = (hsma.pred_long == 1) & (hsma.pred_short == 0)
+        tradeshort = (hsma.pred_long == 0) & (hsma.pred_short == 1)
+        hsma1 = hsma[tradelong | tradeshort].copy()
+        hsma1.loc[tradelong, 'r'] = hsma1.loc[tradelong, 'ratio'] - fee
+        hsma1.loc[tradeshort, 'r'] = -hsma1.loc[tradeshort, 'ratio'] - fee
+        hsmaratio = pd.DataFrame(hsma1.groupby(['date'])['r'].mean()) / day
         hsmaratio.columns = ['dayratio']
         hsmaratio['date'] = hsmaratio.index
+        hsmaratio.index = range(0, hsmaratio.shape[0])
+        hsmaratio['ratio'] = hsmaratio['dayratio'].cumsum()
+        
+        return hsmaratio
+
+    def hsmadata_daycode_lsr(self, hsma, day, pr=0.5, fee=0.0004):
+        hsma['r'] = 0
+        tradelong = (hsma.prob_long > pr) & (hsma.prob_short < 0.5)
+        tradeshort = (hsma.prob_long < 0.5) & (hsma.prob_short > pr)
+        hsma1 = hsma[tradelong | tradeshort].copy()
+        hsma1.loc[tradelong, 'r'] = hsma1.loc[tradelong, 'ratio'] - fee
+        hsma1.loc[tradeshort, 'r'] = -hsma1.loc[tradeshort, 'ratio'] - fee
+        hsmaratio = pd.DataFrame(hsma1.groupby(['date'])['r'].mean()) / day
+        hsmaratio.columns = ['dayratio']
+        hsmaratio['date'] = hsmaratio.index
+        hsmaratio.index = range(0, hsmaratio.shape[0])
         hsmaratio['ratio'] = hsmaratio['dayratio'].cumsum()
         
         return hsmaratio
@@ -1408,28 +1423,27 @@ class Future():
 
         return (hsmatrade)
 
-    def hsmatraderegressor_r(self, hsma, day, r):
+    def hsmatraderegressor_r(self, hsma, day, r, fee=0.0004):
 
-        hsmatrade = hsma[['date', 'code', 'ratio', 'predratio']].copy()
+        hsmatrade = hsma.loc[(hsma['predratio'] > r*day) | 
+                         (hsma['predratio'] < -r*day),
+                         ['date', 'code', 'ratio', 'predratio']].copy()
 
-        hsmatrade['dayratio'] = hsma['ratio']
+        hsmatrade['r'] = hsma['ratio']
 
-        hsmatrade.ix[
-            hsmatrade['predratio'] < 0,
-            'dayratio'] = -hsmatrade.ix[hsmatrade['predratio'] < 0, 'ratio']
+        hsmatrade.loc[hsmatrade['predratio'] < 0, 
+                      'r'] = -hsmatrade.loc[hsmatrade['predratio'] < 0, 
+                                                 'ratio']
 
-        hsmatrade['dayratio'] = hsmatrade['dayratio'] - self.fee
+        hsmatrade['r'] = hsmatrade['r'] - fee
 
-        hsmatrade['dayratio'] = hsmatrade['dayratio'] / day
+        hsmaratio = pd.DataFrame(hsmatrade.groupby(['date'])['r'].mean()) / day
+        hsmaratio.columns = ['dayratio']
+        hsmaratio['date'] = hsmaratio.index
+        hsmaratio.index = range(0, hsmaratio.shape[0])
+        hsmaratio['ratio'] = hsmaratio['dayratio'].cumsum()
 
-        hsmatrade.ix[(hsmatrade['predratio'] < r) & (hsmatrade['predratio'] >
-                                                     -r), 'dayratio'] = 0
-
-        hsmatrade['cumratio'] = hsmatrade['dayratio'].cumsum()
-
-        print(hsmatrade['dayratio'].describe())
-
-        return (hsmatrade)
+        return hsmaratio
 
     def hsmatradeclassifier(self, condition, hsma):
 

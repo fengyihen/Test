@@ -107,10 +107,10 @@ class FutureKeras(FutureDay.Future):
                 input_shape=(
                     timesteps,
                     X_train.shape[2])))  #, dropout_W=0.2, dropout_U=0.2
-        model.add(Dense(y_train.shape[1], activation='softmax'))
+        model.add(Dense(y_train.shape[1], activation='sigmoid'))
 
         model.compile(
-            loss='categorical_crossentropy',
+            loss='binary_crossentropy',
             optimizer='rmsprop',
             metrics=['accuracy'])
 
@@ -140,7 +140,7 @@ class FutureKeras(FutureDay.Future):
         model.add(Dense(y_train.shape[1], activation='softmax'))
 
         model.compile(
-            loss='categorical_crossentropy',
+            loss='binary_crossentropy',
             optimizer='rmsprop',
             metrics=['accuracy'])
 
@@ -1156,7 +1156,8 @@ class FutureKeras(FutureDay.Future):
                                  'ratio', 'prob_long', 'prob_short']]
 
             hsma = pd.concat([hsma, hsmatemp], ignore_index=True)
-            hsma.to_hdf(filename, 'hsma')
+            if readfile:
+                hsma.to_hdf(filename, 'hsma')
 
         return (hsma)
 

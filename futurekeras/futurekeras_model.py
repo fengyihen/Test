@@ -24,22 +24,22 @@ self = futuremodel
 
 ###############################Keras strategy#####################
 #多品种共同建模
-testlen = 20  # 等于day
+testlen = 60  # 等于day
 ntrain = 12
 epochs = 20
 batchsize = 3000
-timesteps = 20
-day = 5
-tr = 0.02
+timesteps = 60
+day = 10
+tr = 0.01
 activation = 'relu'
 attr = 'raw'
 attry = 'roo'
 modellabel = 'LSTM1cls'
 #modellabel = 'LSTM2cls'
 readfile = False
-hsma = futuremodel.lstm_classification_r(testlen, ntrain, epochs, batchsize,
-                                       timesteps, ncode, day, lr, activation,
-                                       modellabel)
+hsma = futuremodel.lstm_classification_r(testlen, ntrain, epochs,
+                                batchsize, timesteps, day, tr, activation,
+                                attr, attry, modellabel, readfile)
 hsmaratio = futuremodel.hsmadata_daycode_lsr(hsma, day)
 tradestat = InvestBase.tradestat_portfolio(hsmaratio)
 plt.plot(hsmaratio.ratio)
