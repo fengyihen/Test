@@ -1318,6 +1318,21 @@ class Future():
 
         return portfolio
 
+    def filterrules(self, hsma, rule, n):
+        
+        if rule == None:
+            return hsma
+        elif rule == 'STD_15':
+            dates = hsma.date.unique()
+            hsmafilter = pd.DataFrame()
+            for d in dates:
+                temp = hsma[hsma.date == d].copy()
+                temp.sort_values(by='STD_15', ascending=False, inplace=True)
+                temp = temp.iloc[0:n, ]
+                hsmafilter = pd.concat([hsmafilter,temp], ignore_index=True)
+            
+            return hsmafilter
+
     def tradestat_portfolio(self, portfolio):
         ###对收益曲线的统计
         tradestat = pd.DataFrame({
@@ -1440,6 +1455,7 @@ class Future():
         hsmaratio = pd.DataFrame(hsmatrade.groupby(['date'])['r'].mean()) / day
         hsmaratio.columns = ['dayratio']
         hsmaratio['date'] = hsmaratio.index
+        hsmaratio.sort_values(by='date',inplace=True)
         hsmaratio.index = range(0, hsmaratio.shape[0])
         hsmaratio['ratio'] = hsmaratio['dayratio'].cumsum()
 

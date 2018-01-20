@@ -62,9 +62,13 @@ reg_lambda = 2
 hsma = futuremodel.xgb_reg(testlen, ntrain, lengths, timesteps, day, tr, attr, 
                            attry, feature_sel, max_depth, learning_rate, 
                            reg_alpha, reg_lambda, modellabel, readfile)
+#rule=None
+rule = 'STD_15'
+n = 10
+hsmafilter = futuremodel.filterrules(hsma, rule, n)
 r = 0.01
 fee = 0.0004
-hsmaratio = futuremodel.hsmatraderegressor_r(hsma, day, r, fee)
+hsmaratio = futuremodel.hsmatraderegressor_r(hsmafilter, day, r, fee)
 tradestat = InvestBase.tradestat_portfolio(hsmaratio)
 plt.plot(hsmaratio.ratio)
 
